@@ -1,6 +1,6 @@
 # Diseño de la API de Inscripciones
 
-Grupo: ______________________________
+Grupo: Santiago Cardenas Rodriguez
 
 ## Paso 1 — Recursos
 
@@ -16,9 +16,7 @@ La fila de *Curso* ya está hecha como ejemplo.
 **Pregunta:** "inscribir" es un verbo. ¿Por qué en REST lo modelamos como el
 recurso *Inscripción* y no como una URI `/inscribir`?
 
-> Respuesta:
-
-En REST las URIs identifican recursos (sustantivos) y los métodos HTTP indican las acciones (verbos). Modelarlo como /inscripciones permite crear (POST), consultar (GET) y cambiar su estado (PATCH) usando estándares HTTP, manteniendo un registro con historial en lugar de una acción aislada tipo RPC.
+> Respuesta: En REST las URIs identifican recursos (sustantivos) y los métodos HTTP indican las acciones (verbos). Modelarlo como /inscripciones permite crear (POST), consultar (GET) y cambiar su estado (PATCH) usando estándares HTTP, manteniendo un registro con historial en lugar de una acción aislada tipo RPC.
 
 ## Paso 2 — Contrato: los 5 endpoints
 
@@ -43,5 +41,4 @@ Pistas: crear → `201`; no existe → `404`; choca con una regla de negocio →
 **Pregunta:** ¿Qué debe responder la API si alguien intenta cancelar una
 inscripción que ya está CANCELADA? ¿Por qué?
 
-> Respuesta:
-Debe responder 409 Conflict con detail: "TRANSICION_INVALIDA", porque la única transición permitida es de ACTIVA a CANCELADA. La petición es sintácticamente válida, pero entra en conflicto con el estado actual del recurso.
+> Respuesta: Debe responder 409 Conflict con detail: "TRANSICION_INVALIDA", porque la única transición permitida es de ACTIVA a CANCELADA. La petición es sintácticamente válida, pero entra en conflicto con el estado actual del recurso.
