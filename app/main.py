@@ -47,6 +47,18 @@ def listar_cursos():
 # TODO(Paso 2): decorador para  POST /inscripciones
 #               con response_model=Inscripcion y status_code=201 (se crea un recurso)
 # TODO(Paso 4): agrégale tags=["Inscripciones"], un summary y responses para 404 y 409
+
+@app.post(
+    "/inscripciones",
+    response_model=Inscripcion,
+    status_code=201,
+    tags=["Inscripciones"],
+    summary="Inscribir a un estudiante en un curso",
+    responses={
+        404: {"model": Error, "description": "NO_ENCONTRADO"},
+        409: {"model": Error, "description": "DUPLICADA, PRERREQUISITOS_PENDIENTES O SIN CUPO"},
+    },
+)
 def crear_inscripcion(cuerpo: InscripcionCrear):
     estudiante = datos.ESTUDIANTES.get(cuerpo.estudiante_id)
     curso = datos.CURSOS.get(cuerpo.curso_codigo)
@@ -55,12 +67,19 @@ def crear_inscripcion(cuerpo: InscripcionCrear):
 
     # TODO(Paso 3) Regla 1 - DUPLICADA
     #   Si datos.buscar_activa(estudiante_id, curso_codigo) encuentra algo -> 409 "DUPLICADA"
+    if datos.buscar_activa(cuerpo.estudiante_id, cuerpo.curso_codigo) is not None:
+        raise HTTPException(status_code=409, detail="DUPLICADA")
 
     # TODO(Paso 3) Regla 2 - PRERREQUISITOS_PENDIENTES
     #   Si algún código de curso["prerrequisitos"] NO está en estudiante["aprobados"] -> 409
+    for prereq in curso["prerrequisitos"]:
+        if prereq not in estudiante["aprobados"]:
+            raise HTTPException(status_code=409, detail="PRERREQUISITOS_PENDIENTES")
 
     # TODO(Paso 3) Regla 3 - SIN_CUPO
     #   Si len(datos.activas_del_curso(codigo)) >= curso["cupos"] -> 409 "SIN_CUPO"
+    if len(datos.activas_del_curso(cuerpo.curso_codigo)) >= curso["cupos"]:
+        raise HTTPException(status_code=409, detail="SIN_CUPO")
 
     return datos.guardar_inscripcion(cuerpo.estudiante_id, cuerpo.curso_codigo,
                                      EstadoInscripcion.ACTIVA.value)
@@ -70,6 +89,15 @@ def crear_inscripcion(cuerpo: InscripcionCrear):
 # TODO(Paso 2): decorador para  GET /inscripciones/{inscripcion_id}
 #               con response_model=Inscripcion
 # TODO(Paso 4): tags, summary y responses para 404
+@app.get(
+    "/inscripciones/{inscripcion_id}",
+    response_model=Inscripcion,
+    tags=["Inscripciones"],
+    summary="Obtener una inscripción por su ID",
+    responses={
+        404: {"model": Error, "description": "NO_ENCONTRADO"},
+    },
+)
 def obtener_inscripcion(inscripcion_id: int):
     inscripcion = datos.INSCRIPCIONES.get(inscripcion_id)
     if inscripcion is None:
@@ -81,6 +109,15 @@ def obtener_inscripcion(inscripcion_id: int):
 # TODO(Paso 2): decorador para  GET /estudiantes/{estudiante_id}/inscripciones
 #               con response_model=list[Inscripcion]
 # TODO(Paso 4): tags=["Estudiantes"] y un summary
+@app.get(
+    "/estudiantes/{estudiante_id}/inscripciones",
+    response_model=list[Inscripcion],
+    tags=["Estudiantes"],
+    summary="Obtener las inscripciones de un estudiante",
+    responses={
+        404: {"model": Error, "description": "NO_ENCONTRADO"},
+    },
+)
 def inscripciones_de_estudiante(estudiante_id: str):
     if estudiante_id not in datos.ESTUDIANTES:
         raise HTTPException(status_code=404, detail="NO_ENCONTRADO")
@@ -91,6 +128,16 @@ def inscripciones_de_estudiante(estudiante_id: str):
 # TODO(Paso 2): decorador para  PATCH /inscripciones/{inscripcion_id}
 #               con response_model=Inscripcion
 # TODO(Paso 4): tags, summary y responses para 404 y 409
+@app.patch(
+    "/inscripciones/{inscripcion_id}",
+    response_model=Inscripcion,
+    tags=["Inscripciones"],
+    summary="Cancelar una inscripción",
+    responses={
+        404: {"model": Error, "description": "NO_ENCONTRADO"},
+        409: {"model": Error, "description": "TRANSICION_INVALIDA"},
+    },
+)
 def cambiar_estado(inscripcion_id: int, cuerpo: CambioEstado):
     inscripcion = datos.INSCRIPCIONES.get(inscripcion_id)
     if inscripcion is None:
@@ -100,4 +147,8 @@ def cambiar_estado(inscripcion_id: int, cuerpo: CambioEstado):
     #   Si la inscripción NO está "ACTIVA" o cuerpo.estado NO es CANCELADA
     #     -> 409 "TRANSICION_INVALIDA"
     #   Si es válida: cambia inscripcion["estado"] a "CANCELADA" y devuélvela.
-    raise NotImplementedError("Completa el Paso 3")
+    if inscripcion["estado"] != EstadoInscripcion.ACTIVA.value or cuerpo.estado != EstadoInscripcion.CANCELADA:
+        raise HTTPException(status_code=409, detail="TRANSICION_INVALIDA")
+
+    inscripcion["estado"] = EstadoInscripcion.CANCELADA.value
+    return inscripcion
